@@ -43,7 +43,12 @@ function renderTable(containerId, headers, rows) {
     html += '</tr></thead><tbody>';
     rows.forEach((row, idx) => {
         const isLast = idx === rows.length - 1;
-        html += `<tr class="${isLast ? 'result-row' : ''}">`;
+        let classes = [];
+        if (isLast) classes.push('result-row');
+        if (row.highlight) classes.push('highlight-row');
+        
+        const style = row.highlight ? ' style="background-color: rgba(255, 193, 7, 0.3);"' : '';
+        html += `<tr class="${classes.join(' ')}"${style}>`;
         row.forEach(cell => html += `<td>${typeof cell === 'number' ? cell.toFixed(4) : cell}</td>`);
         html += '</tr>';
     });
@@ -249,18 +254,35 @@ function calcularGrafica() {
         // Prevenir la generación de demasiados puntos (límite de 2000)
         if ((xMax - xMin) / step > 2000) throw new Error('Demasiados puntos a calcular. Aumenta el paso o reduce el rango.');
 
+        let previousY = null;
         for (let x = xMin; x <= xMax; x += step) {
             // Evitar problemas de redondeo en flotantes de JavaScript
             let currentX = Math.round(x * 100000) / 100000;
             let y = evalFunc(func, currentX);
             
+            let obs = "-";
+            let highlight = false;
+            
+            if (y === 0) {
+                obs = "🎯 Raíz";
+                highlight = true;
+            } else if (previousY !== null && ((previousY > 0 && y < 0) || (previousY < 0 && y > 0))) {
+                obs = "⚠️ Cambio de signo";
+                highlight = true;
+            }
+
             xValues.push(currentX);
             yValues.push(y);
-            rows.push([currentX, y]);
+            
+            let rowData = [currentX, y, obs];
+            if (highlight) rowData.highlight = true;
+            rows.push(rowData);
+
+            previousY = y;
         }
 
         // Mostrar tabla con coordenadas
-        renderTable('graf-result', ['Coordenada X', 'f(X)'], rows);
+        renderTable('graf-result', ['Coordenada X', 'f(X)', 'Observación'], rows);
 
         // Dibujar gráfica
         document.getElementById('chart-wrapper').style.display = 'block';
