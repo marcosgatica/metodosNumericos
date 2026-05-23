@@ -201,40 +201,85 @@ function calcularSecante() {
     } catch (e) { showError('sec-error', 'Error: ' + e.message); }
 }
 
-/* MÉTODO DE MÜLLER: Ajusta una parábola a tres puntos para encontrar raíces.
-   Útil para raíces múltiples o complejas. */
 function calcularMuller() {
+    // 1. Limpia cualquier mensaje de error que haya quedado de un cálculo anterior en la interfaz
     clearError('muller-error');
+    
     try {
+        // 2. LECTURA DE DATOS
+        // Obtiene la función matemática escrita por el usuario (ej. "x^3 - 13x - 12")
         const func = document.getElementById('muller-func').value;
+        // El método de Müller necesita 3 puntos iniciales para trazar una parábola. Se extraen y se convierten a números decimales (float).
         let x0 = parseFloat(document.getElementById('muller-x0').value);
         let x1 = parseFloat(document.getElementById('muller-x1').value);
         let x2 = parseFloat(document.getElementById('muller-x2').value);
         
+        // Arreglo para guardar el historial de resultados de cada iteración y luego armar la tabla
         let rows = [];
-        for (let i = 1; i <= 10; i++) { // Iteraciones limitadas para Muller por su convergencia
-            // Cálculos de las diferencias divididas
-            const h0 = x1 - x0, h1 = x2 - x1;
+        
+        // 3. BUCLE DE ITERACIONES
+        // Se limita a 10 iteraciones porque Müller tiene una tasa de convergencia casi cúbica (muy rápida).
+        // Si no encuentra la raíz en 10 pasos, es probable que diverja o los puntos iniciales sean malos.
+        for (let i = 1; i <= 10; i++) { 
+            
+            // --- Cálculos de las diferencias divididas (Construcción de la parábola) ---
+            
+            // Distancias entre los puntos "x" evaluados
+            const h0 = x1 - x0;
+            const h1 = x2 - x1;
+            
+            // Primeras diferencias divididas (representan las pendientes entre x0-x1 y x1-x2)
             const d0 = (evalFunc(func, x1) - evalFunc(func, x0)) / h0;
             const d1 = (evalFunc(func, x2) - evalFunc(func, x1)) / h1;
             
-            // Coeficientes de la parábola a*x^2 + b*x + c
-            const a = (d1 - d0) / (h1 + h0), b = a * h1 + d1, c = evalFunc(func, x2);
+            // Coeficientes de la parábola en la forma: P(x) = a(x - x2)^2 + b(x - x2) + c
+            // 'a' es la segunda diferencia dividida
+            const a = (d1 - d0) / (h1 + h0); 
+            const b = a * h1 + d1; 
+            // 'c' es simplemente la función evaluada en el último punto (x2)
+            const c = evalFunc(func, x2);
             
-            // Resolución cuadrática
+            // --- Resolución de la ecuación cuadrática (Variante de Müller) ---
+            
+            // Calcula el discriminante: √(b² - 4ac)
             const disc = Math.sqrt(b*b - 4*a*c);
-            // Elección del signo del denominador para maximizar su valor y minimizar el error
+            
+            // El método de Müller usa una fórmula cuadrática alternativa: x = x2 - (2c) / (b ± √(b² - 4ac))
+            // Para evitar un error matemático llamado "cancelación catastrófica", necesitamos que el denominador sea lo más grande posible.
+            // Por eso, comprobamos qué signo (suma o resta del discriminante) da el mayor valor absoluto:
             const den = Math.abs(b + disc) > Math.abs(b - disc) ? b + disc : b - disc;
+            
+            // x3 es nuestra nueva aproximación de la raíz (el punto donde la parábola corta el eje X)
             const x3 = x2 + (-2 * c) / den; 
+            
+            // Calculamos cuánto cambió el valor respecto a la iteración anterior para saber qué tan precisos somos
             const error = Math.abs(x3 - x2);
             
+            // Guardamos todos los datos de esta ronda en el arreglo 'rows'
             rows.push([i, x0, x1, x2, evalFunc(func,x0), evalFunc(func,x1), evalFunc(func,x2), x3, error]);
+            
+            // 4. CRITERIO DE PARADA
+            // Si el error es menor a nuestra tolerancia fija (0.001), detenemos el bucle porque ya encontramos la raíz.
             if (error < 0.001) break;
             
-            x0 = x1; x1 = x2; x2 = x3;
+            // 5. PREPARACIÓN PARA LA SIGUIENTE ITERACIÓN
+            // Descartamos el punto más antiguo (x0) y recorremos los demás un lugar hacia atrás. 
+            // El nuevo punto calculado (x3) pasa a ser el nuevo x2.
+            x0 = x1; 
+            x1 = x2; 
+            x2 = x3;
         }
+        
+        // 6. RENDERIZADO VISUAL
+        // Toma todo el historial guardado en 'rows' y genera las filas de la tabla en el HTML.
         renderTable('muller-result', ['i','X₀','X₁','X₂','F(X₀)','F(X₁)','F(X₂)','X₃','Error'], rows);
-    } catch (e) { showError('muller-error', 'Error: ' + e.message); }
+        
+    } catch (e) { 
+        // 7. MANEJO DE ERRORES
+        // Si hay una división por cero, una variable mal escrita o la función matemática no tiene sentido, 
+        // el código salta aquí en lugar de "romper" la página, y muestra el mensaje de error al usuario.
+        showError('muller-error', 'Error: ' + e.message); 
+    }
 }
 
 /* MÉTODO DE RAÍCES MÚLTIPLES: Variante de Newton-Raphson modificada 
